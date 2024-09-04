@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rutas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #E28CFF;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        #map {
+            height: 500px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        #directionsForm {
+            max-width: 800px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        select, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #E28CFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #43CBFF;
+        }
+
+        #stepsContainer {
+            max-width: 800px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #stepsContainer h2 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        #stepsList {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #stepsList li {
+            margin-bottom: 10px;
+        }
+
+        #distance {
+            margin-top: 10px;
+            color: #555;
+        }
+    </style>
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&libraries=geometry" async defer></script>
+</head>
+<body>
+    <h1>Obtener Ruta optima</h1>
+    <form id="directionsForm">
+        <label for="origin">Origen:</label>
+        <select id="origin" name="origin">
+            {% for ciudad in ciudades %}
+                <option value="{{ ciudad }}">{{ ciudad }}</option>
+            {% endfor %}
+        </select>
+        <label for="destination">Destino:</label>
+        <select id="destination" name="destination">
+            {% for ciudad in ciudades %}
+                <option value="{{ ciudad }}">{{ ciudad }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Obtener Ruta</button>
+    </form>
+
+    <div id="stepsContainer">
+        <h2>Instrucciones de Ruta</h2>
+        <ul id="stepsList"></ul>
+        <p id="distance"></p>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+        document.getElementById('directionsForm').onsubmit = function(event) {
+            event.preventDefault();
+            fetchDirections();
+        };
+
+        function fetchDirections() {
+            var origin = document.getElementById('origin').value;
+            var destination = document.getElementById('destination').value;
+
+            fetch('/directions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    origin: origin,
+                    destination: destination
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'OK') {
+                    displayRoute(data.polyline);
+                    displaySteps(data.steps, data.distance);
+                } else {
+                    alert('No se pudo obtener la dirección');
+                }
+            });
+        }
+
+        function displayRoute(polyline) {
+            var map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 7,
+                center: { lat: 23.634501, lng: -102.552784 } // Centro de México
+            });
+
+            var decodedPath = google.maps.geometry.encoding.decodePath(polyline);
+            var route = new google.maps.Polyline({
+                path: decodedPath,
+                geodesic: true,
+                strokeColor: '#FF0000',
+                strokeOpacity: 1.0,
+                strokeWeight: 2
+            });
+
+            route.setMap(map);
+
+            var bounds = new google.maps.LatLngBounds();
+            for (var i = 0; i < decodedPath.length; i++) {
+                bounds.extend(decodedPath[i]);
+            }
+            map.fitBounds(bounds);
+        }
+
+        function displaySteps(steps, distance) {
+            var stepsList = document.getElementById('stepsList');
+            stepsList.innerHTML = '';
+
+            steps.forEach(step => {
+                var li = document.createElement('li');
+                li.innerHTML = step;
+                stepsList.appendChild(li);
+            });
+
+            var distanceElement = document.getElementById('distance');
+            distanceElement.textContent = 'Distancia total: ' + distance;
+        }
+    </script>
+</body>
+</html>
